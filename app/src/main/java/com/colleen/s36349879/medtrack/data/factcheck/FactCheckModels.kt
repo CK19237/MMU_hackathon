@@ -23,6 +23,27 @@ enum class Verdict {
                 else -> UNVERIFIED
             }
         }
+
+        /**
+         * Maps the 5-category verdict vocabulary used when the LLM is given
+         * retrieved evidence (SUPPORTED / UNSUPPORTED / MISLEADING /
+         * POTENTIALLY_HARMFUL / INSUFFICIENT_EVIDENCE) onto this app's
+         * existing 4-value [Verdict], so the UI/cache/seed data don't need to
+         * change. POTENTIALLY_HARMFUL collapses into [FALSE] — the claim is
+         * still false/unsupported, and the "potentially harmful" nuance is
+         * preserved in the explanation text instead (see
+         * [FactCheckRepository.checkClaimLive]).
+         */
+        fun fromEvidenceBackedApiString(value: String?): Verdict {
+            return when (value?.trim()?.uppercase()) {
+                "SUPPORTED" -> TRUE
+                "UNSUPPORTED" -> FALSE
+                "MISLEADING" -> MISLEADING
+                "POTENTIALLY_HARMFUL" -> FALSE
+                "INSUFFICIENT_EVIDENCE" -> UNVERIFIED
+                else -> fromApiString(value)
+            }
+        }
     }
 }
 
@@ -34,7 +55,9 @@ enum class Verdict {
  */
 data class SourceRef(
     val name: String,
-    val url: String? = null
+    val url: String? = null,
+    /** e.g. "NPRA", "KKM_CPG", "NHMS", "DATA_GOV_MY", or "web" for a general grounding citation. Defaults to "web" for backward compatibility with existing call sites. */
+    val sourceType: String = "web"
 )
 
 /**
@@ -46,7 +69,8 @@ data class SourceRef(
  * @property explanation A 2-3 sentence plain-language explanation.
  * @property sources Supporting sources for the verdict.
  * @property languageCode BCP-47-ish code the explanation is written in (e.g. "en", "ms").
- * @property fromCache True if this result came from the local myth cache rather than a live API call.
+ * @property fromCache True if this result came from the local myth cache or the verified-claim cache rather than a live API call.
+ * @property officialEvidenceFound True if this result was grounded in curated Malaysian government evidence (NPRA/KKM/NHMS/data.gov.my) or a cached result derived from one; false if no such evidence was found and the general web-grounded fallback was used instead. Defaults to true for backward compatibility with the pre-existing myth cache path.
  */
 data class FactCheckResult(
     val claim: String,
@@ -54,7 +78,8 @@ data class FactCheckResult(
     val explanation: String,
     val sources: List<SourceRef>,
     val languageCode: String,
-    val fromCache: Boolean
+    val fromCache: Boolean,
+    val officialEvidenceFound: Boolean = true
 )
 
 /** Supported languages for the Fact-Check tab's language selector. */

@@ -8,6 +8,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -25,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -203,6 +205,7 @@ fun FactCheckScreen(
 @Composable
 fun VerdictCard(result: FactCheckResult, onFlag: () -> Unit) {
     var flagged by remember(result) { mutableStateOf(false) }
+    val uriHandler = LocalUriHandler.current
     val (badgeColor, label) = when (result.verdict) {
         Verdict.TRUE -> Color(0xFF2E7D32) to "TRUE"
         Verdict.FALSE -> Color(0xFFC62828) to "FALSE"
@@ -233,11 +236,31 @@ fun VerdictCard(result: FactCheckResult, onFlag: () -> Unit) {
             Spacer(modifier = Modifier.height(10.dp))
             Text(text = result.explanation)
 
+            if (!result.officialEvidenceFound) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "⚠ No reliable Malaysian government source was found for this claim — this result is based on general web sources instead.",
+                    fontSize = 12.sp,
+                    color = Color(0xFF8A6D00)
+                )
+            }
+
             if (result.sources.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(10.dp))
-                Text(text = "Sources:", fontWeight = FontWeight.Bold)
+                Text(text = "Evidence Source${if (result.sources.size > 1) "s" else ""}:", fontWeight = FontWeight.Bold)
                 result.sources.forEach { source: SourceRef ->
-                    Text(text = "• ${source.name}${source.url?.let { " ($it)" } ?: ""}", fontSize = 13.sp)
+                    Column(modifier = Modifier.padding(top = 4.dp)) {
+                        Text(text = source.name, fontSize = 13.sp)
+                        if (!source.url.isNullOrBlank()) {
+                            Text(
+                                text = "View official source",
+                                fontSize = 13.sp,
+                                color = colorResource(R.color.LightBlue),
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.clickable { uriHandler.openUri(source.url) }
+                            )
+                        }
+                    }
                 }
             }
 

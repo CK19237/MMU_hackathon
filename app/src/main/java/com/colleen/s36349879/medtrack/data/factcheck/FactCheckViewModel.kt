@@ -34,23 +34,37 @@ class FactCheckViewModel(context: Context) : ViewModel() {
     private val appContext = context.applicationContext
     private val mythCacheDao: MythCacheDao = MedTrackDatabase.getDatabase(appContext).mythCacheDao()
     private val flaggedItemDao: FlaggedItemDao = MedTrackDatabase.getDatabase(appContext).flaggedItemDao()
-    private val repository = FactCheckRepository(appContext, mythCacheDao)
+    private val govEvidenceDao: GovEvidenceDao = MedTrackDatabase.getDatabase(appContext).govEvidenceDao()
+    private val verifiedClaimCacheDao: VerifiedClaimCacheDao = MedTrackDatabase.getDatabase(appContext).verifiedClaimCacheDao()
+    private val repository = FactCheckRepository(appContext, mythCacheDao, govEvidenceDao, verifiedClaimCacheDao)
 
     var uiState by mutableStateOf<FactCheckUiState>(FactCheckUiState.Idle)
         private set
 
     var selectedLanguage by mutableStateOf(FactCheckLanguage.DEFAULT)
 
-    /** Ensures the myth cache has its seed data. Call once, e.g. from MainActivity's existing seeding block. */
+    /**
+     * Ensures the myth cache and the curated gov evidence table both have
+     * their seed data. Call once, e.g. from MainActivity's existing seeding
+     * block. Kept as one function (same name/signature as before) so the
+     * existing call site in MainActivity doesn't need to change.
+     */
     fun seedMythCacheIfNeeded() {
         viewModelScope.launch {
             MythSeedData.seedIfEmpty(mythCacheDao)
+            GovEvidenceSeedData.seedIfEmpty(govEvidenceDao)
         }
     }
 
     /**
-     * Verifies [claim]: checks the local cache first, then falls back to the
-     * live grounded API call if no confident cache match is found.
+     * Verifies [claim]. Flow (per the required database-first pipeline):
+     * 1. Hand-curated myth cache (instant, offline-capable — unchanged).
+     * 2. Dynamic verified-claim cache — claims this app already fact-checked live before.
+     * 3. If no cache match: retrieve curated Malaysian government evidence, then call
+     *    the LLM with that evidence (or the original general web-grounded fallback if
+     *    no official evidence was found for this claim).
+     * 4. Save the new live result into the verified-claim cache so an equivalent future
+     *    claim is instant next time.
      */
     fun verifyClaim(claim: String) {
         val trimmed = claim.trim()
@@ -63,12 +77,19 @@ class FactCheckViewModel(context: Context) : ViewModel() {
             uiState = FactCheckUiState.Loading
             try {
                 val cached = repository.checkLocalCache(trimmed, selectedLanguage)
+                    ?: repository.checkVerifiedClaimCache(trimmed, selectedLanguage)
                 if (cached != null) {
                     uiState = FactCheckUiState.Success(cached)
                     return@launch
                 }
 
-                val live = repository.checkClaimLive(trimmed, selectedLanguage)
+                val evidence = repository.retrieveEvidence(trimmed)
+                val live = repository.checkClaimLive(trimmed, selectedLanguage, evidence.takeIf { !it.isEmpty })
+                repository.saveToVerifiedClaimCache(
+                    live,
+                    evidenceUsed = evidence.matches.takeIf { !evidence.isEmpty }
+                        ?.joinToString("; ") { it.evidence.evidenceText }
+                )
                 uiState = FactCheckUiState.Success(live)
             } catch (e: Exception) {
                 uiState = FactCheckUiState.Error(
