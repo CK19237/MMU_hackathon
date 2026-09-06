@@ -8,6 +8,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.FactCheck
+import androidx.compose.material.icons.filled.HealthAndSafety
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SupportAgent
@@ -64,6 +66,12 @@ fun HomeScreen(
                     ){
                         IconButton(onClick = {navController.navigate("home")}) {
                             Icon(Icons.Filled.Home, contentDescription = "Go Home")
+                        }
+                        IconButton(onClick = {navController.navigate("fact_check")}) {
+                            Icon(Icons.Filled.FactCheck, contentDescription = "Fact-Check")
+                        }
+                        IconButton(onClick = {navController.navigate("health_assistant")}) {
+                            Icon(Icons.Filled.HealthAndSafety, contentDescription = "Health Assistant")
                         }
                         IconButton(onClick = {navController.navigate("symptoms")}) {
                             Icon(Icons.AutoMirrored.Filled.List, contentDescription = "Symptoms")

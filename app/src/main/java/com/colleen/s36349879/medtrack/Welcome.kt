@@ -41,6 +41,9 @@ import com.colleen.s36349879.medtrack.ui.theme.MedtrackTheme
 import com.colleen.s36349879.medtrack.data.isDatabaseSeeded
 import com.colleen.s36349879.medtrack.data.setDatabaseSeeded
 import com.colleen.s36349879.medtrack.data.tip.TipViewModel
+import com.colleen.s36349879.medtrack.data.factcheck.FactCheckViewModel
+import com.colleen.s36349879.medtrack.data.healthassistant.HealthAssistantViewModel
+import com.colleen.s36349879.medtrack.data.doctorreview.DoctorReviewViewModel
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -81,6 +84,18 @@ class MainActivity : ComponentActivity() {
         )
     }
 
+    private val factCheckViewModel: FactCheckViewModel by viewModels {
+        FactCheckViewModel.FactCheckViewModelFactory(this)
+    }
+
+    private val healthAssistantViewModel: HealthAssistantViewModel by viewModels {
+        HealthAssistantViewModel.HealthAssistantViewModelFactory(this)
+    }
+
+    private val doctorReviewViewModel: DoctorReviewViewModel by viewModels {
+        DoctorReviewViewModel.DoctorReviewViewModelFactory(this)
+    }
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -104,6 +119,11 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        // Myth cache seeding is guarded separately (checks table row count directly)
+        // so it stays correct even if it's ever added after the main seeding flag
+        // above was already set on someone's device.
+        factCheckViewModel.seedMythCacheIfNeeded()
+
         setContent {
             MedtrackTheme() {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
@@ -114,6 +134,9 @@ class MainActivity : ComponentActivity() {
                         genAiViewModel = genAiViewModel,
                         tipViewModel = tipViewModel,
                         clinicianPasswordViewModel = clinicianPasswordViewModel,
+                        factCheckViewModel = factCheckViewModel,
+                        healthAssistantViewModel = healthAssistantViewModel,
+                        doctorReviewViewModel = doctorReviewViewModel,
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
@@ -132,6 +155,9 @@ fun MyNavHost(
     genAiViewModel: GenAIViewModel,
     tipViewModel: TipViewModel,
     clinicianPasswordViewModel: ClinicianPasswordViewModel,
+    factCheckViewModel: FactCheckViewModel,
+    healthAssistantViewModel: HealthAssistantViewModel,
+    doctorReviewViewModel: DoctorReviewViewModel,
     modifier: Modifier = Modifier
 ){
     val navController = rememberNavController()
@@ -160,6 +186,9 @@ fun MyNavHost(
         composable("clinician_dashboard") {ClinicianDashboardScreen(
             navController,patientViewModel, medicationViewModel, symptomViewModel, clinicianPasswordViewModel, genAiViewModel)
         }
+        composable("fact_check") { FactCheckScreen(navController, factCheckViewModel) }
+        composable("health_assistant") { HealthAssistantScreen(navController, healthAssistantViewModel) }
+        composable("doctor_review") { DoctorReviewScreen(navController, doctorReviewViewModel) }
     }
 }
 

@@ -97,4 +97,10 @@ dependencies {
 
 // For kotlinx.serialization (Modern Kotlin standard):
     implementation("com.squareup.retrofit2:converter-kotlinx-serialization:3.0.0")
+
+    // Explicit OkHttp dependency for the Fact-Check tab's direct Gemini REST call
+    // (Google Search grounding isn't exposed by the com.google.ai.client.generativeai
+    // SDK below — see FactCheckRepository's class doc comment for why).
+    // Already pulled in transitively by retrofit, declared explicitly for clarity.
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }
