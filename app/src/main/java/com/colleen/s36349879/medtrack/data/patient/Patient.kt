@@ -23,5 +23,21 @@ data class Patient(
 
     val phoneNumber: String,
     val patientName: String,
-    val password: String
+    val password: String,
+
+    /** The patient's age in years. Null for accounts created before this field existed, or left blank at signup. */
+    val age: Int? = null,
+
+    /** BCP-47-ish UI language code (e.g. "en", "zh", "ms"). Defaults to English for accounts created before this field existed. */
+    val preferredLanguage: String = "en",
+
+    /**
+     * Manually-chosen font size, stored as [FontSizeOption.name] (e.g. "LARGE").
+     * Null means "no explicit choice yet" — the effective size then falls back to
+     * age-based auto-sizing (see [effectiveFontSizeOption]).
+     */
+    val fontSizePreference: String? = null,
+
+    /** Comma-separated medicine names the patient has recorded as allergies. */
+    val medicineAllergies: String = ""
 )

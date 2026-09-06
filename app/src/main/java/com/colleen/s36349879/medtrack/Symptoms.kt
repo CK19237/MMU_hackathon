@@ -22,6 +22,8 @@ import androidx.navigation.NavHostController
 import com.colleen.s36349879.medtrack.data.patient.PatientViewModel
 import com.colleen.s36349879.medtrack.data.symptom.Symptom
 import com.colleen.s36349879.medtrack.data.symptom.SymptomViewModel
+import com.colleen.s36349879.medtrack.ui.localization.LocalStrings
+import com.colleen.s36349879.medtrack.ui.localization.Strings
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.time.LocalDateTime
@@ -32,12 +34,12 @@ import java.util.Locale
 
 
 // Returns a label based on severity value
-fun getSeverityLabel(severity: Int): String {
+fun getSeverityLabel(severity: Int, strings: Strings): String {
     return when (severity){
-        in 1..3 -> "Mild"
-        in 4..6 -> "Moderate"
-        in 7..10 -> "Severe"
-        else -> "Unknown"
+        in 1..3 -> strings.severityMild
+        in 4..6 -> strings.severityModerate
+        in 7..10 -> strings.severityHigh
+        else -> strings.severityUnknown
     }
 }
 
@@ -77,7 +79,7 @@ fun DatePickerFun(
                 onConfirm(convertMillisToDate(millis))
             }
         }){
-            Text("Confirm Date")
+            Text(LocalStrings.current.confirmDate)
         }
     }
 }
@@ -97,6 +99,8 @@ fun SymptomsScreen(
     patientViewModel: PatientViewModel
 ){
 
+    val strings = LocalStrings.current
+
     //Snackbar values
     val snackbarHostState = remember{ SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -112,6 +116,8 @@ fun SymptomsScreen(
     var notes by remember {mutableStateOf("")}
     var selectedDateText by remember { mutableStateOf("") }
     var selectedTimeText by remember { mutableStateOf("") }
+    val patient by patientViewModel.getCurrentPatient().collectAsState(initial = null)
+    var medicineAllergies by remember(patient?.medicineAllergies) { mutableStateOf(patient?.medicineAllergies.orEmpty()) }
 
     // Max words for notes
     val maxWords = 200
@@ -127,31 +133,7 @@ fun SymptomsScreen(
 
     Scaffold(
         snackbarHost = {SnackbarHost(hostState = snackbarHostState)},
-        bottomBar = {
-            BottomAppBar(
-                modifier = Modifier.height(60.dp),
-                content = {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ){
-                        IconButton(onClick = {navController.navigate("home")}) {
-                            Icon(Icons.Filled.Home, contentDescription = "Go Home")
-                        }
-                        IconButton(onClick = {navController.navigate("symptoms")}) {
-                            Icon(Icons.AutoMirrored.Filled.List, contentDescription = "Symptoms")
-                        }
-                        IconButton(onClick = {navController.navigate("settings")}) {
-                            Icon(Icons.Filled.Settings, contentDescription = "Settings")
-                        }
-                        IconButton(onClick = {navController.navigate("med_coach")}) {
-                            Icon(Icons.Filled.SupportAgent, contentDescription = "MedCoach")
-                        }
-                    }
-
-                }
-            )
-        }
+        bottomBar = { MedTrackBottomBar(navController, currentRoute = "symptoms") }
     ) { innerPadding ->
 
         LazyColumn(
@@ -164,7 +146,7 @@ fun SymptomsScreen(
             // Title
             item{
                 Text(
-                    text = "Log Symptoms",
+                    text = strings.symptomsTitle,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = colorResource(R.color.LightBlue)
@@ -181,13 +163,13 @@ fun SymptomsScreen(
                         value = selectedCategory,
                         onValueChange = {},
                         readOnly = true,
-                        label = {Text("Symptom Category")},
+                        label = {Text(strings.symptomsCategoryLabel)},
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded)},
                         isError = categoryError,
                         supportingText = {
                             if (categoryError) {
                                 Text(
-                                    text = "Symptom category is required",
+                                    text = strings.symptomsCategoryRequired,
                                     color = MaterialTheme.colorScheme.error
                                 )
                             }
@@ -220,15 +202,36 @@ fun SymptomsScreen(
                 }
             }
 
+            // Shared patient allergy context used by Fact Checker and Personalized AI Tips.
+            item {
+                OutlinedTextField(
+                    value = medicineAllergies,
+                    onValueChange = { medicineAllergies = it },
+                    label = { Text(strings.symptomsMedicineAllergiesLabel) },
+                    supportingText = { Text(strings.symptomsMedicineAllergiesHint) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Button(
+                    onClick = {
+                        patientViewModel.updateMedicineAllergies(patientId, medicineAllergies.trim())
+                        scope.launch { snackbarHostState.showSnackbar(strings.symptomsSavedMessage) }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = colorResource(R.color.LightBlue))
+                ) {
+                    Text(strings.symptomsMedicineAllergiesSave)
+                }
+            }
+
             //Severity Slider
             // Slider and label changes based on severity
             item{
                 val severityInt = severity.toInt()
-                val severityLabel = getSeverityLabel(severityInt)
+                val severityLabel = getSeverityLabel(severityInt, strings)
                 val severityColor = getSeverityColor(severityInt)
 
                 Text(
-                    text = "Severity: $severityInt ($severityLabel)",
+                    text = strings.symptomsSeverityLabel.format(severityInt, severityLabel),
                     color = severityColor,
                     fontWeight = FontWeight.Bold
                 )
@@ -249,7 +252,7 @@ fun SymptomsScreen(
                 // Validate if the slider is in range
                 if (severityError){
                     Text(
-                        text = "Severity must be between 1 and 10",
+                        text = strings.symptomsSeverityRangeError,
                         color = MaterialTheme.colorScheme.error
                     )
                 }
@@ -262,7 +265,7 @@ fun SymptomsScreen(
                 OutlinedTextField(
                     value = notes,
                     onValueChange = {if (it.length <= maxWords) notes = it},
-                    label = {Text("Additional Notes (optional)") },
+                    label = {Text(strings.symptomsNotesLabel) },
                     supportingText = {Text("${notes.length}/200")},
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -270,7 +273,7 @@ fun SymptomsScreen(
 
             //Date and Time selection
             item{
-                Text("When did it occur?", fontWeight = FontWeight.Bold)
+                Text(strings.symptomsWhenOccurred, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))
 
                 // when date and time is selected, show them together
@@ -282,7 +285,7 @@ fun SymptomsScreen(
                 }
 
                 // Date picker
-                Text("Select Date (required)")
+                Text(strings.symptomsSelectDate)
                 Spacer(modifier = Modifier.height(8.dp))
 
                 DatePickerFun(
@@ -295,7 +298,7 @@ fun SymptomsScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Time Picker
-                Text("Select Time (required)")
+                Text(strings.symptomsSelectTime)
                 Spacer(modifier = Modifier.height(8.dp))
 
                 TimePickerFun(
@@ -316,7 +319,7 @@ fun SymptomsScreen(
                     dateError = true
 
                     Text(
-                        text = "Date is required",
+                        text = strings.symptomsDateRequired,
                         color = MaterialTheme.colorScheme.error
                     )
                 }
@@ -325,7 +328,7 @@ fun SymptomsScreen(
                     timeError = true
 
                     Text(
-                        text = "Time is required",
+                        text = strings.symptomsTimeRequired,
                         color = MaterialTheme.colorScheme.error
                     )
                 }
@@ -341,6 +344,8 @@ fun SymptomsScreen(
                         if(!categoryError && !dateError && !timeError) {
 
                             // Only save if the user filled in the required parts
+                            patientViewModel.updateMedicineAllergies(patientId, medicineAllergies.trim())
+
                             symptomViewModel.addSymptom(
                                 category = selectedCategory,
                                 severity = severity.toInt(),
@@ -350,7 +355,7 @@ fun SymptomsScreen(
                             )
 
                             scope.launch {
-                                snackbarHostState.showSnackbar("Symptom logged successfully")
+                                snackbarHostState.showSnackbar(strings.symptomsSavedMessage)
                             }
 
                             selectedCategory = ""
@@ -366,7 +371,7 @@ fun SymptomsScreen(
                     ),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Save Symptom")
+                    Text(strings.symptomsSaveButton)
                 }
             }
 
@@ -375,7 +380,7 @@ fun SymptomsScreen(
                 Spacer(modifier = Modifier.height(20.dp))
                 // Title
                 Text(
-                    text = "Symptom History",
+                    text = strings.symptomsHistoryTitle,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -384,7 +389,7 @@ fun SymptomsScreen(
             // If the database is empty, show a message. Otherwise, show cards.
             if (symptomsList.isEmpty()) {
                 item{
-                    Text("No symptoms logged yet.")
+                    Text(strings.symptomsNoneLogged)
                 }
             }
             // Show all symptoms
@@ -401,8 +406,9 @@ fun SymptomsScreen(
 
 @Composable
 fun SymptomCard(symptom: Symptom){
+    val strings = LocalStrings.current
     val symptomSeverityColor = getSeverityColor(symptom.severity)
-    val symptomSeverityLabel = getSeverityLabel(symptom.severity)
+    val symptomSeverityLabel = getSeverityLabel(symptom.severity, strings)
 
     Card(
         modifier = Modifier.fillMaxWidth().padding(8.dp),
@@ -417,14 +423,14 @@ fun SymptomCard(symptom: Symptom){
                 fontWeight = FontWeight.Bold
             )
 
-            Text("Date/Time: ${symptom.symptomDateTime}")
+            Text(strings.symptomsDateTimeLabel.format(symptom.symptomDateTime))
 
             Text(
-                text = "Severity: ${symptom.severity} ($symptomSeverityLabel)",
+                text = strings.symptomsSeverityLabel.format(symptom.severity, symptomSeverityLabel),
                 color = symptomSeverityColor
             )
 
-            Text("Notes: ${symptom.symptomNotes}")
+            Text(strings.symptomsNotesPrefix.format(symptom.symptomNotes))
         }
     }
 }

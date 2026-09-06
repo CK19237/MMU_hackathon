@@ -44,6 +44,11 @@ import com.colleen.s36349879.medtrack.data.tip.TipViewModel
 import com.colleen.s36349879.medtrack.data.factcheck.FactCheckViewModel
 import com.colleen.s36349879.medtrack.data.healthassistant.HealthAssistantViewModel
 import com.colleen.s36349879.medtrack.data.doctorreview.DoctorReviewViewModel
+import com.colleen.s36349879.medtrack.data.patient.appLanguage
+import com.colleen.s36349879.medtrack.data.patient.effectiveFontSizeOption
+import com.colleen.s36349879.medtrack.ui.localization.LocalStrings
+import com.colleen.s36349879.medtrack.ui.localization.stringsFor
+import com.colleen.s36349879.medtrack.ui.theme.ScaledFontProvider
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -163,32 +168,48 @@ fun MyNavHost(
     val navController = rememberNavController()
 
     // If someone is logged in, go to home, if not start at welcome
-    val startDestination = if (patientViewModel.isUserLoggedIn()) "home" else "welcome"
+    val startDestination = if (patientViewModel.isUserLoggedIn()) "fact_check" else "welcome"
 
-    // Define all navigation destinations
-    NavHost(
-        navController = navController,
-        startDestination = startDestination,
-        modifier = modifier
-    ){
-        composable("welcome")  { WelcomeScreen(navController) }
-        composable("login")    { LoginScreen(navController, patientViewModel) }
-        composable("claim_account") { ClaimAccountScreen(navController, patientViewModel) }
-        composable("signup")   { SignUpScreen(navController, patientViewModel) }
-        composable("home")     { HomeScreen(navController, patientViewModel, medicationViewModel) }
-        composable("symptoms") { SymptomsScreen(navController, symptomViewModel, patientViewModel) }
-        composable("add_medication"){ AddMedicationScreen(navController, medicationViewModel, patientViewModel) }
-        composable("settings") {SettingsScreen(navController, patientViewModel)}
-        composable("med_coach") {MedCoachScreen(
-            navController, medicationViewModel, genAiViewModel, tipViewModel, symptomViewModel, patientViewModel)
+    // The logged-in patient's language/font-size preferences, applied app-wide below.
+    // Before login (or for a patient with no preferences saved yet) this is null, and
+    // appLanguage()/effectiveFontSizeOption() fall back to English/Default.
+    val currentPatient by patientViewModel.getCurrentPatient().collectAsState(initial = null)
+    val appLanguage = currentPatient.appLanguage()
+    val fontSizeOption = currentPatient.effectiveFontSizeOption()
+
+    CompositionLocalProvider(LocalStrings provides stringsFor(appLanguage)) {
+        ScaledFontProvider(scale = fontSizeOption.scale) {
+            // Define all navigation destinations
+            NavHost(
+                navController = navController,
+                startDestination = startDestination,
+                modifier = modifier
+            ) {
+                composable("welcome") { WelcomeScreen(navController) }
+                composable("login") { LoginScreen(navController, patientViewModel) }
+                composable("claim_account") { ClaimAccountScreen(navController, patientViewModel) }
+                composable("signup") { SignUpScreen(navController, patientViewModel) }
+                composable("home") { HomeScreen(navController, patientViewModel, medicationViewModel) }
+                composable("symptoms") { SymptomsScreen(navController, symptomViewModel, patientViewModel) }
+                composable("add_medication") { AddMedicationScreen(navController, medicationViewModel, patientViewModel) }
+                composable("settings") { SettingsScreen(navController, patientViewModel) }
+                composable("med_coach") {
+                    MedCoachScreen(
+                        navController, medicationViewModel, genAiViewModel, tipViewModel, symptomViewModel, patientViewModel
+                    )
+                }
+                composable("clinician_login") { ClinicianLoginScreen(navController, clinicianPasswordViewModel) }
+                composable("clinician_dashboard") {
+                    ClinicianDashboardScreen(
+                        navController, patientViewModel, medicationViewModel, symptomViewModel, clinicianPasswordViewModel, genAiViewModel
+                    )
+                }
+                composable("fact_check") { FactCheckScreen(navController, factCheckViewModel, patientViewModel) }
+                composable("health_assistant") { HealthAssistantScreen(navController, healthAssistantViewModel) }
+                composable("doctor_review") { DoctorReviewScreen(navController, doctorReviewViewModel) }
+                composable("history") { HistoryScreen(navController, factCheckViewModel, patientViewModel) }
+            }
         }
-        composable("clinician_login") {ClinicianLoginScreen(navController, clinicianPasswordViewModel)}
-        composable("clinician_dashboard") {ClinicianDashboardScreen(
-            navController,patientViewModel, medicationViewModel, symptomViewModel, clinicianPasswordViewModel, genAiViewModel)
-        }
-        composable("fact_check") { FactCheckScreen(navController, factCheckViewModel) }
-        composable("health_assistant") { HealthAssistantScreen(navController, healthAssistantViewModel) }
-        composable("doctor_review") { DoctorReviewScreen(navController, doctorReviewViewModel) }
     }
 }
 
@@ -196,6 +217,7 @@ fun MyNavHost(
 @Composable
 fun WelcomeScreen(navController: NavHostController) {
     val context = LocalContext.current
+    val strings = LocalStrings.current
 
     Column(
         modifier = Modifier
@@ -234,20 +256,20 @@ fun WelcomeScreen(navController: NavHostController) {
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(18.dp)
-        ){ Text(text = "Login",
+        ){ Text(text = strings.welcomeLogin,
             fontSize = 20.sp) }
 
         //Claim Account Button (CSV users)
         OutlinedButton(
             onClick = { navController.navigate("claim_account") },
             modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
-        ) { Text("Existing Patient? Claim Account", fontSize = 16.sp) }
+        ) { Text(strings.welcomeClaimAccount, fontSize = 16.sp) }
 
         // Go to signup
         TextButton(onClick = {
             navController.navigate("signup")
         }) {
-            Text("Don't have an account? Sign Up")
+            Text(strings.welcomeSignUpPrompt)
         }
 
         // Hyperlink to website
@@ -262,12 +284,6 @@ fun WelcomeScreen(navController: NavHostController) {
         verticalArrangement = Arrangement.Bottom,
         horizontalAlignment = Alignment.CenterHorizontally
     ){
-        Text(
-            text = ("*This app is for tracking purposes only and does not replace professional medical advice*"),
-            color = Color.Red,
-            fontStyle = FontStyle.Italic
-        )
-        Text("Colleen Ker (36349879)")
     }
 
 }

@@ -118,4 +118,31 @@ class PatientRepository (context: Context) {
      * @return A [Flow] emitting the total count of patients in the database.
      */
     fun getTotalPatientCount(): Flow<Int> = patientDao.getTotalPatientCount()
+
+    /** Updates the patient's age. */
+    suspend fun updateAge(pid: String, age: Int?) {
+        val patient = patientDao.getPatientById(pid) ?: return
+        patientDao.updatePatient(patient.copy(age = age))
+    }
+
+    /** Updates the patient's recorded medicine allergies. */
+    suspend fun updateMedicineAllergies(pid: String, allergies: String) {
+        val patient = patientDao.getPatientById(pid) ?: return
+        patientDao.updatePatient(patient.copy(medicineAllergies = allergies))
+    }
+
+    /** Updates the patient's preferred UI language (an [AppLanguage.code]). */
+    suspend fun updateLanguage(pid: String, languageCode: String) {
+        val patient = patientDao.getPatientById(pid) ?: return
+        patientDao.updatePatient(patient.copy(preferredLanguage = languageCode))
+    }
+
+    /**
+     * Updates the patient's manually-chosen font size.
+     * @param fontSizeKey A [FontSizeOption.name], or null to clear back to age-based auto-sizing.
+     */
+    suspend fun updateFontSizePreference(pid: String, fontSizeKey: String?) {
+        val patient = patientDao.getPatientById(pid) ?: return
+        patientDao.updatePatient(patient.copy(fontSizePreference = fontSizeKey))
+    }
 }

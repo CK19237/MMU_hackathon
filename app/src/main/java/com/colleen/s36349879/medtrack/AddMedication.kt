@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.colleen.s36349879.medtrack.data.medication.MedicationViewModel
 import com.colleen.s36349879.medtrack.data.patient.PatientViewModel
+import com.colleen.s36349879.medtrack.ui.localization.LocalStrings
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -42,7 +43,7 @@ fun TimePickerFun(
 
         // Confirm button that can pass the selected time to the parent function
         Button (onClick = {onConfirm(timePickerState)}){
-            Text("Confirm Time")
+            Text(LocalStrings.current.confirmTime)
         }
     }
 }
@@ -55,6 +56,8 @@ fun AddMedicationScreen(
     medicationViewModel: MedicationViewModel,
     patientViewModel: PatientViewModel
 ){
+    val strings = LocalStrings.current
+
     // Get the ID of the patient who is currently logged in
     val patientId = patientViewModel.getLoggedInPatientId()
 
@@ -93,10 +96,10 @@ fun AddMedicationScreen(
     // Collect all dosage errors into a list
     val dosageErrors = mutableListOf<String>()
     if (dosage.isBlank()) {
-        dosageErrors.add("Dosage is required")
+        dosageErrors.add(strings.addMedicationDosageRequired)
     }
     if (dosage.isNotBlank() && !dosageRegex.matches(dosage.trim())){
-        dosageErrors.add("Invalid format. Use e.g., 500mg, 10ml, 1.5g")
+        dosageErrors.add(strings.addMedicationDosageInvalid)
     }
 
     Scaffold(
@@ -116,7 +119,7 @@ fun AddMedicationScreen(
 
                 // Title
                 Text(
-                    text = "Add Medication",
+                    text = strings.addMedicationTitle,
                     style = TextStyle(
                         fontSize = 40.sp,
                         color = colorResource(R.color.LightBlue),
@@ -133,11 +136,11 @@ fun AddMedicationScreen(
                         name = it
                         nameError = false
                     },
-                    label = { Text("Medication Name (required)") },
+                    label = { Text(strings.addMedicationNameLabel) },
                     isError = nameError,
                     supportingText = {
                         if (nameError) {
-                            Text(text = "Medication name is required",
+                            Text(text = strings.addMedicationNameRequired,
                                 color = MaterialTheme.colorScheme.error
                             )
                         }
@@ -156,7 +159,7 @@ fun AddMedicationScreen(
                 OutlinedTextField(
                     value = dosage,
                     onValueChange = { dosage = it },
-                    label = { Text("Dosage (required, e.g., “250mg”)") },
+                    label = { Text(strings.addMedicationDosageLabel) },
                     isError = dosageErrors.isNotEmpty(),
                     supportingText = {
                         if (dosageErrors.isNotEmpty()) {
@@ -179,12 +182,12 @@ fun AddMedicationScreen(
                         value = selectedFrequency,
                         onValueChange = {},
                         readOnly = true, // User cannot type, only selecte from dropdown
-                        label = { Text("Frequency (required)") },
+                        label = { Text(strings.addMedicationFrequencyLabel) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = frequencyExpanded) },
                         isError = frequencyError,
                         supportingText = {
                             if (frequencyError) {
-                                Text(text = "Frequency is required",
+                                Text(text = strings.addMedicationFrequencyRequired,
                                     color = MaterialTheme.colorScheme.error
                                 )
                             }
@@ -236,7 +239,7 @@ fun AddMedicationScreen(
                     Text("Selected time = ${formatter.format(cal.time)}")
                 } else {
                     Text(
-                        text = "No time selected.",
+                        text = strings.addMedicationNoTimeSelected,
                         color = MaterialTheme.colorScheme.error
                     )
                 }
@@ -253,12 +256,12 @@ fun AddMedicationScreen(
                         value = selectedType,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Medication Type (required)") },
+                        label = { Text(strings.addMedicationTypeLabel) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = typeExpanded) },
                         isError = typeError,
                         supportingText = {
                             if (typeError) {
-                                Text(text = "Medication type is required",
+                                Text(text = strings.addMedicationTypeRequired,
                                     color = MaterialTheme.colorScheme.error
                                 )
                             }
@@ -296,7 +299,7 @@ fun AddMedicationScreen(
                 OutlinedTextField(
                     value = notes,
                     onValueChange = { notes = it },
-                    label = { Text("Notes (optional)") },
+                    label = { Text(strings.addMedicationNotesLabel) },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -333,12 +336,12 @@ fun AddMedicationScreen(
                                 )
 
                                 scope.launch {
-                                    snackbarHostState.showSnackbar("Medication saved successfully!")
+                                    snackbarHostState.showSnackbar(strings.addMedicationSaved)
                                     navController.navigate("home")
                                 }
                             }
                         }
-                    ) { Text("Save") }
+                    ) { Text(strings.save) }
 
                     // Clear button
                     Button(
@@ -350,7 +353,7 @@ fun AddMedicationScreen(
                             selectedType = ""
                             notes = ""
                         }
-                    ){Text("Clear")}
+                    ){Text(strings.clear)}
                 }
             }
         }

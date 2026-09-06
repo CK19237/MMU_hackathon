@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.colleen.s36349879.medtrack.data.medication.MedicationViewModel
 import com.colleen.s36349879.medtrack.data.patient.PatientViewModel
+import com.colleen.s36349879.medtrack.ui.localization.LocalStrings
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -39,6 +40,8 @@ fun HomeScreen(
     patientViewModel: PatientViewModel,
     medicationViewModel: MedicationViewModel
 ){
+    val strings = LocalStrings.current
+
     // Get the logged-in patient's ID to load their specific data
     val patientId = patientViewModel.getLoggedInPatientId()
 
@@ -56,37 +59,7 @@ fun HomeScreen(
     )
 
     Scaffold(
-        bottomBar = {
-            BottomAppBar(
-                modifier = Modifier.height(60.dp),
-                content = {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ){
-                        IconButton(onClick = {navController.navigate("home")}) {
-                            Icon(Icons.Filled.Home, contentDescription = "Go Home")
-                        }
-                        IconButton(onClick = {navController.navigate("fact_check")}) {
-                            Icon(Icons.Filled.FactCheck, contentDescription = "Fact-Check")
-                        }
-                        IconButton(onClick = {navController.navigate("health_assistant")}) {
-                            Icon(Icons.Filled.HealthAndSafety, contentDescription = "Health Assistant")
-                        }
-                        IconButton(onClick = {navController.navigate("symptoms")}) {
-                            Icon(Icons.AutoMirrored.Filled.List, contentDescription = "Symptoms")
-                        }
-                        IconButton(onClick = {navController.navigate("settings")}) {
-                            Icon(Icons.Filled.Settings, contentDescription = "Settings")
-                        }
-                        IconButton(onClick = {navController.navigate("med_coach")}) {
-                            Icon(Icons.Filled.SupportAgent, contentDescription = "MedCoach")
-                        }
-                    }
-
-                }
-            )
-        },
+        bottomBar = { MedTrackBottomBar(navController, currentRoute = "home") },
         // Add medications button
         floatingActionButton = {
             FloatingActionButton(
@@ -95,7 +68,7 @@ fun HomeScreen(
             {
                 Row(){
                     Text(
-                        text = "Add Medications",
+                        text = strings.homeAddMedication,
                         fontSize = 14.sp,
                     )
 
@@ -141,7 +114,7 @@ fun HomeScreen(
                         ),
                     ){
                         Text(
-                            text = "Logout",
+                            text = strings.logout,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -151,7 +124,7 @@ fun HomeScreen(
 
                 // Greeting
                 Text(
-                    text = "Hello, ${patient?.patientName ?: "Patient"}",
+                    text = strings.homeGreeting.format(patient?.patientName ?: "Patient"),
                     style = TextStyle(
                         fontSize = 30.sp,
                         color = colorResource(R.color.LightBlue),
@@ -160,7 +133,7 @@ fun HomeScreen(
                 )
 
                 Text(
-                    text = "ID: ${patient?.patientId ?: "Patient ID"}",
+                    text = strings.homeIdLabel.format(patient?.patientId ?: "Patient ID"),
                     fontSize = 14.sp,
                     color = Color.Gray,
                     modifier = Modifier.padding(bottom = 8.dp)
@@ -177,7 +150,7 @@ fun HomeScreen(
                     )
                 ){
                     Text(
-                        text = "$takenCount of ${medications.size} medications taken today",
+                        text = strings.homeMedsTakenSummary.format(takenCount, medications.size),
                         modifier = Modifier.padding(16.dp),
                         fontSize = 16.sp,
                     )
@@ -187,7 +160,7 @@ fun HomeScreen(
             // Title
             item {
                 Text(
-                    text = "Today's Medications",
+                    text = strings.homeTodaysMedications,
                     fontSize = 18.sp
                 )
             }
@@ -196,7 +169,7 @@ fun HomeScreen(
             if (medications.isEmpty()) {
                 item {
                     Text(
-                        text = "No medications scheduled.",
+                        text = strings.homeNoMedications,
                         fontSize = 14.sp
                     )
                 }
@@ -237,17 +210,17 @@ fun HomeScreen(
                             Spacer(modifier = Modifier.height(4.dp))
 
                             Text(
-                                text = "Dosage: ${medication.dosage}",
+                                text = strings.homeDosageLabel.format(medication.dosage),
                                 fontSize = 14.sp
                             )
 
                             Text(
-                                text = "Frequency: ${medication.frequency}",
+                                text = strings.homeFrequencyLabel.format(medication.frequency),
                                 fontSize = 14.sp
                             )
 
                             Text(
-                                text = "Time: ${medication.medicationTime}",
+                                text = strings.homeTimeLabel.format(medication.medicationTime),
                                 fontSize = 14.sp
                             )
                         }

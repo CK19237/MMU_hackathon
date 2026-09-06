@@ -62,11 +62,13 @@ import com.colleen.s36349879.medtrack.data.network.DrugResult
 import com.colleen.s36349879.medtrack.data.patient.PatientViewModel
 import com.colleen.s36349879.medtrack.data.symptom.SymptomViewModel
 import com.colleen.s36349879.medtrack.data.tip.TipViewModel
+import com.colleen.s36349879.medtrack.ui.localization.LocalStrings
 
 
 // A card that displays the FDA drug label information for a searched medication
 @Composable
 fun DrugResultCard(result: DrugResult) {
+    val strings = LocalStrings.current
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -74,7 +76,7 @@ fun DrugResultCard(result: DrugResult) {
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                "FDA Official Label Info",
+                strings.medCoachFdaLabelInfo,
                 fontWeight = FontWeight.Bold,
                 color = colorResource(R.color.LightBlue)
             )
@@ -82,24 +84,24 @@ fun DrugResultCard(result: DrugResult) {
 
             // Each section of the drug label is displayed in its own expandable block
             ExpandableDrugDetail(
-                label = "Purpose",
+                label = strings.medCoachPurpose,
                 // firstOrNull() gets the first item or null if the list is empty
                 content = result.purpose?.firstOrNull()
             )
 
             ExpandableDrugDetail(
-                label = "Important Warnings",
+                label = strings.medCoachWarnings,
                 content = result.warnings?.firstOrNull(),
                 isWarning = true // Flags this section to display in red
             )
 
             ExpandableDrugDetail(
-                label = "Dosage & Administration",
+                label = strings.medCoachDosageAdmin,
                 content = result.dosageAndAdministration?.firstOrNull()
             )
 
             ExpandableDrugDetail(
-                label = "Indications & Usage",
+                label = strings.medCoachIndications,
                 content = result.indicationsAndUsage?.firstOrNull()
             )
         }
@@ -110,6 +112,7 @@ fun DrugResultCard(result: DrugResult) {
 // if the content is long. isWarning makes the label appear in red.
 @Composable
 fun ExpandableDrugDetail(label: String, content: String?, isWarning: Boolean = false) {
+    val strings = LocalStrings.current
 
     // Only render this section if there is actual content to show
     if (!content.isNullOrBlank()) {
@@ -148,7 +151,7 @@ fun ExpandableDrugDetail(label: String, content: String?, isWarning: Boolean = f
                     modifier = Modifier.height(30.dp)
                 ) {
                     Text(
-                        text = if (isExpanded) "Show Less" else "Read More...", // Label changes based on state
+                        text = if (isExpanded) strings.showLess else strings.readMore, // Label changes based on state
                         fontSize = 12.sp,
                         color = colorResource(R.color.LightBlue),
                         fontWeight = FontWeight.Bold
@@ -171,6 +174,8 @@ fun MedCoachScreen(
     symptomViewModel: SymptomViewModel,
     patientViewModel: PatientViewModel
 ){
+    val strings = LocalStrings.current
+
     // The text the user types in the search field
     var searchQuery by remember { mutableStateOf("") }
 
@@ -190,32 +195,16 @@ fun MedCoachScreen(
 
     // Load the patient's medication names to show in the search dropdown and pass to the AI
     val myMeds by medicationViewModel.getMyMedicationNames(patientId).collectAsState(initial = emptyList())
+    val patient by patientViewModel.getCurrentPatient().collectAsState(initial = null)
+    val allergies = remember(patient?.medicineAllergies) {
+        patient?.medicineAllergies.orEmpty().split(",").map { it.trim() }.filter { it.isNotBlank() }
+    }
+    val intakeAllergyMatches = remember(myMeds, allergies) {
+        myMeds.filter { med -> allergies.any { allergy -> med.equals(allergy, ignoreCase = true) } }
+    }
 
     Scaffold(
-        bottomBar = {
-            BottomAppBar(
-                modifier = Modifier.height(60.dp),
-                content = {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ){
-                        IconButton(onClick = {navController.navigate("home")}) {
-                            Icon(Icons.Filled.Home, contentDescription = "Go Home")
-                        }
-                        IconButton(onClick = {navController.navigate("symptoms")}) {
-                            Icon(Icons.AutoMirrored.Filled.List, contentDescription = "Symptoms")
-                        }
-                        IconButton(onClick = {navController.navigate("settings")}) {
-                            Icon(Icons.Filled.Settings, contentDescription = "Settings")
-                        }
-                        IconButton(onClick = {navController.navigate("med_coach")}) {
-                            Icon(Icons.Filled.SupportAgent, contentDescription = "MedCoach")
-                        }
-                    }
-                }
-            )
-        }
+        bottomBar = { MedTrackBottomBar(navController, currentRoute = "med_coach") }
     ){ innerPadding ->
 
         LazyColumn(
@@ -230,14 +219,14 @@ fun MedCoachScreen(
             item{
                 Column{
                     Text(
-                        text = "MedCoach",
+                        text = strings.medCoachTitle,
                         fontSize = 32.sp,
                         fontWeight = FontWeight.Bold,
                         color = colorResource(R.color.LightBlue)
                     )
 
                     Text(
-                        text = "FDA Drug Information Lookup",
+                        text = strings.medCoachSubtitle,
                         fontSize = 14.sp,
                         color = Color.Gray
                     )
@@ -247,7 +236,7 @@ fun MedCoachScreen(
             // Drug search section with a dropdown showing the patient's own medications
             item{
                 Text (
-                    text = "Search Medication",
+                    text = strings.medCoachSearchLabel,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 18.sp
                 )
@@ -265,7 +254,7 @@ fun MedCoachScreen(
                             // Only show the dropdown if the user has typed something AND has medications
                             expanded = it.isNotEmpty() && myMeds.isNotEmpty()
                                         },
-                        label = {Text("Enter Drug Name (e.g. Panadol)")},
+                        label = {Text(strings.medCoachSearchPlaceholder)},
                         modifier = Modifier
                             .fillMaxWidth()
                             .menuAnchor(MenuAnchorType.PrimaryEditable, enabled = true),
@@ -329,6 +318,23 @@ fun MedCoachScreen(
                 }
             }
 
+            // High-priority patient safety flag when an intake record exactly matches a recorded allergy.
+            if (intakeAllergyMatches.isNotEmpty()) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFE5E5))
+                    ) {
+                        Text(
+                            text = strings.medCoachAllergyWarning,
+                            color = Color(0xFF9B0000),
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(14.dp)
+                        )
+                    }
+                }
+            }
+
             // AI tip section
             item{
 
@@ -343,7 +349,8 @@ fun MedCoachScreen(
                     Button(
                         onClick = {genAiViewModel.generateMedicationTip (
                             medications = myMeds,
-                            symptoms = symptomCategory
+                            symptoms = symptomCategory,
+                            allergies = allergies
                         ) {tip ->
                             // Callback that runs when the AI finishes generating the tip
                             // Save the tip to the database so it appears in history
@@ -357,7 +364,7 @@ fun MedCoachScreen(
                     ){
                         Icon(Icons.Default.AutoAwesome, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
-                        Text("Get Personalised AI Tip")
+                        Text(strings.medCoachGetTip)
                     }
 
                     // Show a loading spinner and message while the AI generates the tip
@@ -369,7 +376,7 @@ fun MedCoachScreen(
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 CircularProgressIndicator(color = colorResource(R.color.LightBlue))
                                 Spacer(Modifier.height(8.dp))
-                                Text("Coach is thinking...", fontSize = 12.sp, color = Color.Gray)
+                                Text(strings.medCoachThinking, fontSize = 12.sp, color = Color.Gray)
                             }
                         }
                     }
@@ -393,7 +400,7 @@ fun MedCoachScreen(
                     TextButton(
                         onClick = { showHistory = true },
                         modifier = Modifier.align(Alignment.CenterHorizontally)) {
-                        Text("View History", color = colorResource(R.color.LightBlue))
+                        Text(strings.medCoachViewHistory, color = colorResource(R.color.LightBlue))
                     }
                 }
             }
@@ -405,11 +412,11 @@ fun MedCoachScreen(
     if (showHistory) {
         AlertDialog(
             onDismissRequest = { showHistory = false }, // Close the dialog if the user taps outside it
-            title = { Text("Recent AI Tips") },
+            title = { Text(strings.medCoachHistoryTitle) },
             text = {
                 Box(modifier = Modifier.heightIn(max = 300.dp)) {
                     if (tipHistory.isEmpty()) {
-                        Text("No history found.")
+                        Text(strings.medCoachNoHistory)
                     } else {
                         // LazyColumn inside the dialog to handle long tip history
                         LazyColumn {
@@ -421,7 +428,7 @@ fun MedCoachScreen(
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { showHistory = false }) { Text("Close") } }
+            confirmButton = { TextButton(onClick = { showHistory = false }) { Text(strings.close) } }
         )
     }
 

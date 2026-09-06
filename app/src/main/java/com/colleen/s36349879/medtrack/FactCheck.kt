@@ -10,6 +10,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -38,6 +40,8 @@ import com.colleen.s36349879.medtrack.data.factcheck.FactCheckUiState
 import com.colleen.s36349879.medtrack.data.factcheck.FactCheckViewModel
 import com.colleen.s36349879.medtrack.data.factcheck.SourceRef
 import com.colleen.s36349879.medtrack.data.factcheck.Verdict
+import com.colleen.s36349879.medtrack.data.patient.PatientViewModel
+import com.colleen.s36349879.medtrack.ui.localization.LocalStrings
 import java.util.Locale
 
 /**
@@ -49,9 +53,11 @@ import java.util.Locale
 @Composable
 fun FactCheckScreen(
     navController: NavHostController,
-    viewModel: FactCheckViewModel
+    viewModel: FactCheckViewModel,
+    patientViewModel: PatientViewModel
 ) {
     val context = LocalContext.current
+    val strings = LocalStrings.current
     var claimText by remember { mutableStateOf("") }
     var languageMenuExpanded by remember { mutableStateOf(false) }
     val uiState = viewModel.uiState
@@ -81,50 +87,28 @@ fun FactCheckScreen(
         try {
             speechLauncher.launch(intent)
         } catch (e: ActivityNotFoundException) {
-            Toast.makeText(context, "Voice input isn't available on this device.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, strings.factCheckVoiceUnavailable, Toast.LENGTH_SHORT).show()
         }
     }
 
     Scaffold(
-        bottomBar = {
-            BottomAppBar(
-                modifier = Modifier.height(60.dp),
-                content = {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        IconButton(onClick = { navController.navigate("home") }) {
-                            Icon(Icons.Filled.Home, contentDescription = "Go Home")
-                        }
-                        IconButton(onClick = { navController.navigate("symptoms") }) {
-                            Icon(Icons.AutoMirrored.Filled.List, contentDescription = "Symptoms")
-                        }
-                        IconButton(onClick = { navController.navigate("settings") }) {
-                            Icon(Icons.Filled.Settings, contentDescription = "Settings")
-                        }
-                        IconButton(onClick = { navController.navigate("med_coach") }) {
-                            Icon(Icons.Filled.SupportAgent, contentDescription = "MedCoach")
-                        }
-                    }
-                }
-            )
-        }
+        bottomBar = { MedTrackBottomBar(navController, currentRoute = "fact_check") }
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
                 .padding(20.dp)
         ) {
             Text(
-                text = "Fact-Check",
+                text = strings.factCheckTitle,
                 fontSize = 26.sp,
                 fontWeight = FontWeight.Bold,
                 color = colorResource(R.color.LightBlue)
             )
             Text(
-                text = "Paste a forwarded message or type a health claim to verify it against trusted sources.",
+                text = strings.factCheckSubtitle,
                 modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
             )
 
@@ -137,7 +121,7 @@ fun FactCheckScreen(
                     value = viewModel.selectedLanguage.displayName,
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Language") },
+                    label = { Text(strings.factCheckLanguageLabel) },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = languageMenuExpanded) },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -164,8 +148,8 @@ fun FactCheckScreen(
             OutlinedTextField(
                 value = claimText,
                 onValueChange = { claimText = it },
-                label = { Text("Health claim") },
-                placeholder = { Text("e.g. \"5G towers spread COVID-19\"") },
+                label = { Text(strings.factCheckClaimLabel) },
+                placeholder = { Text(strings.factCheckClaimPlaceholder) },
                 minLines = 3,
                 modifier = Modifier.fillMaxWidth(),
                 trailingIcon = {
@@ -178,7 +162,7 @@ fun FactCheckScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             Button(
-                onClick = { viewModel.verifyClaim(claimText) },
+                onClick = { viewModel.verifyClaim(claimText, patientViewModel.getLoggedInPatientId()) },
                 enabled = uiState !is FactCheckUiState.Loading,
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = colorResource(R.color.LightBlue))
@@ -186,16 +170,62 @@ fun FactCheckScreen(
                 if (uiState is FactCheckUiState.Loading) {
                     CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
                 } else {
-                    Text("Check this claim")
+                    Text(strings.factCheckSubmit)
                 }
             }
 
             Spacer(modifier = Modifier.height(20.dp))
 
             when (uiState) {
-                is FactCheckUiState.Success -> VerdictCard(result = uiState.result, onFlag = { viewModel.flagCurrentResult() })
+                is FactCheckUiState.Success -> {
+                    SafetyWarningsCard(
+                        warnings = uiState.safetyWarnings,
+                        interactionCheckAvailable = uiState.medicationInteractionCheckAvailable,
+                        hasRecordedMedications = uiState.hasRecordedMedications
+                    )
+                    VerdictCard(result = uiState.result, onFlag = { viewModel.flagCurrentResult() })
+                }
                 is FactCheckUiState.Error -> Text(text = uiState.message, color = Color.Red)
                 else -> {}
+            }
+        }
+    }
+}
+
+@Composable
+private fun SafetyWarningsCard(
+    warnings: List<com.colleen.s36349879.medtrack.data.factcheck.MedicationSafetyWarning>,
+    interactionCheckAvailable: Boolean,
+    hasRecordedMedications: Boolean
+) {
+    val strings = LocalStrings.current
+    if (warnings.isEmpty() && interactionCheckAvailable) return
+    Column(modifier = Modifier.fillMaxWidth()) {
+        warnings.forEach { warning ->
+            if (warning == com.colleen.s36349879.medtrack.data.factcheck.MedicationSafetyWarning.ALLERGY) {
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFE5E5))
+                ) {
+                    Text(
+                        text = strings.factCheckAllergyWarning,
+                        color = Color(0xFF9B0000),
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(14.dp)
+                    )
+                }
+            }
+        }
+        if (!interactionCheckAvailable && hasRecordedMedications) {
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3CD))
+            ) {
+                Text(
+                    text = strings.factCheckInteractionUnavailable,
+                    color = Color(0xFF6B5200),
+                    modifier = Modifier.padding(14.dp)
+                )
             }
         }
     }
@@ -204,13 +234,14 @@ fun FactCheckScreen(
 /** Color-coded verdict card: green = True, red = False, amber = Misleading, gray = Unverified. */
 @Composable
 fun VerdictCard(result: FactCheckResult, onFlag: () -> Unit) {
+    val strings = LocalStrings.current
     var flagged by remember(result) { mutableStateOf(false) }
     val uriHandler = LocalUriHandler.current
     val (badgeColor, label) = when (result.verdict) {
-        Verdict.TRUE -> Color(0xFF2E7D32) to "TRUE"
-        Verdict.FALSE -> Color(0xFFC62828) to "FALSE"
-        Verdict.MISLEADING -> Color(0xFFF9A825) to "MISLEADING"
-        Verdict.UNVERIFIED -> Color(0xFF757575) to "UNVERIFIED"
+        Verdict.TRUE -> Color(0xFF2E7D32) to strings.verdictTrue
+        Verdict.FALSE -> Color(0xFFC62828) to strings.verdictFalse
+        Verdict.MISLEADING -> Color(0xFFF9A825) to strings.verdictMisleading
+        Verdict.UNVERIFIED -> Color(0xFF757575) to strings.verdictUnverified
     }
 
     Card(
@@ -229,7 +260,7 @@ fun VerdictCard(result: FactCheckResult, onFlag: () -> Unit) {
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 if (result.fromCache) {
-                    Text(text = "Instant match (local cache)", fontSize = 12.sp, color = Color.Gray)
+                    Text(text = strings.factCheckInstantMatch, fontSize = 12.sp, color = Color.Gray)
                 }
             }
 
@@ -239,7 +270,7 @@ fun VerdictCard(result: FactCheckResult, onFlag: () -> Unit) {
             if (!result.officialEvidenceFound) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "⚠ No reliable Malaysian government source was found for this claim — this result is based on general web sources instead.",
+                    text = strings.factCheckNoOfficialSource,
                     fontSize = 12.sp,
                     color = Color(0xFF8A6D00)
                 )
@@ -247,13 +278,16 @@ fun VerdictCard(result: FactCheckResult, onFlag: () -> Unit) {
 
             if (result.sources.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(10.dp))
-                Text(text = "Evidence Source${if (result.sources.size > 1) "s" else ""}:", fontWeight = FontWeight.Bold)
+                Text(
+                    text = if (result.sources.size > 1) strings.factCheckEvidenceSourcesLabel else strings.factCheckEvidenceSourceLabel,
+                    fontWeight = FontWeight.Bold
+                )
                 result.sources.forEach { source: SourceRef ->
                     Column(modifier = Modifier.padding(top = 4.dp)) {
                         Text(text = source.name, fontSize = 13.sp)
                         if (!source.url.isNullOrBlank()) {
                             Text(
-                                text = "View official source",
+                                text = strings.factCheckViewSource,
                                 fontSize = 13.sp,
                                 color = colorResource(R.color.LightBlue),
                                 fontWeight = FontWeight.Bold,
@@ -271,7 +305,7 @@ fun VerdictCard(result: FactCheckResult, onFlag: () -> Unit) {
             ) {
                 Icon(Icons.Filled.Flag, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text(if (flagged) "Sent to doctor review" else "Flag this verdict")
+                Text(if (flagged) strings.factCheckFlagged else strings.factCheckFlagVerdict)
             }
         }
     }

@@ -9,6 +9,8 @@ import com.colleen.s36349879.medtrack.data.isDatabaseSeeded
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
 import com.colleen.s36349879.medtrack.data.*
 import com.google.gson.reflect.TypeToken
@@ -34,6 +36,9 @@ class PatientViewModel (private val context: Context): ViewModel() {
 
     private val gson = Gson()
 
+    /** Reactive session ID so patient preferences/data follow authentication changes. */
+    private val loggedInPatientId = MutableStateFlow("")
+
     /**
      * Checks whether a patient is currently logged in by querying [AuthManager].
      *
@@ -47,10 +52,10 @@ class PatientViewModel (private val context: Context): ViewModel() {
      *
      * @return A [Flow] emitting the current [Patient], or null if not found.
      */
-    fun getCurrentPatient(): Flow<Patient?> {
-        val id = AuthManager.getPatientSession() ?: ""
-        return patientRepository.getPatientById(id)
-    }
+    fun getCurrentPatient(): Flow<Patient?> =
+        loggedInPatientId.flatMapLatest { id ->
+            patientRepository.getPatientById(id)
+        }
 
     /**
      * Returns the patient ID of the currently logged-in patient.
@@ -81,7 +86,8 @@ class PatientViewModel (private val context: Context): ViewModel() {
             val patient = patientRepository.login(id, pass)
             if (patient != null) {
                 // Session is saved
-                AuthManager.savePatientSession(id)
+                AuthManager.savePatientSession(patient.patientId)
+                loggedInPatientId.value = patient.patientId
                 onResult(true)
             } else {
                 onResult(false) // Invalid credentials; do not save a session
@@ -102,7 +108,14 @@ class PatientViewModel (private val context: Context): ViewModel() {
      * @param pass The patient's chosen password.
      * @param onResult A callback invoked with the new patient ID on success, or null if the phone already exists.
      */
-    fun register(name: String, phone: String, pass: String, onResult: (String?) -> Unit) {
+    fun register(
+        name: String,
+        phone: String,
+        pass: String,
+        age: Int? = null,
+        preferredLanguage: String = AppLanguage.DEFAULT.code,
+        onResult: (String?) -> Unit
+    ) {
         viewModelScope.launch {
             //Check if phone exists
             val existing = patientRepository.getPatientByPhone(phone)
@@ -116,12 +129,37 @@ class PatientViewModel (private val context: Context): ViewModel() {
                     patientId = newId,
                     patientName = name,
                     phoneNumber = phone,
-                    password = pass
+                    password = pass,
+                    age = age,
+                    preferredLanguage = preferredLanguage
                 )
                 patientRepository.addPatient(newPatient)
                 onResult(newId) // Return the new ID
             }
         }
+    }
+
+    /** Updates the patient's age. */
+    fun updateAge(pid: String, age: Int?) {
+        viewModelScope.launch { patientRepository.updateAge(pid, age) }
+    }
+
+    /** Updates the patient's recorded medicine allergies. */
+    fun updateMedicineAllergies(pid: String, allergies: String) {
+        viewModelScope.launch { patientRepository.updateMedicineAllergies(pid, allergies) }
+    }
+
+    /** Updates the patient's preferred UI language (an [AppLanguage.code]). */
+    fun updateLanguage(pid: String, languageCode: String) {
+        viewModelScope.launch { patientRepository.updateLanguage(pid, languageCode) }
+    }
+
+    /**
+     * Updates the patient's manually-chosen font size.
+     * @param fontSizeKey A [FontSizeOption.name], or null to clear back to age-based auto-sizing.
+     */
+    fun updateFontSizePreference(pid: String, fontSizeKey: String?) {
+        viewModelScope.launch { patientRepository.updateFontSizePreference(pid, fontSizeKey) }
     }
 
     /**
@@ -145,6 +183,7 @@ class PatientViewModel (private val context: Context): ViewModel() {
     /** Logs out the current patient by clearing their session from [AuthManager].*/
     fun logout() {
         AuthManager.clearSession() // Removes the stored session so isUserLoggedIn() returns false
+        loggedInPatientId.value = ""
     }
 
     /**
@@ -189,7 +228,11 @@ class PatientViewModel (private val context: Context): ViewModel() {
                     val type = object : TypeToken<List<Patient>>() {}.type
                     val oldPatients: List<Patient> = gson.fromJson(json, type)
 
-                    patientList.addAll(oldPatients) // Merge migrated patients with CSV data
+                    // Older serialized Patient objects predate medicineAllergies; normalize
+                    // migrated records before inserting into the non-null Room column.
+                    patientList.addAll(oldPatients.map { patient ->
+                        if (patient.medicineAllergies == null) patient.copy(medicineAllergies = "") else patient
+                    }) // Merge migrated patients with CSV data
 
                     // Clean up the old data through the AuthManager
                     AuthManager.clearOldPatients()
@@ -213,6 +256,7 @@ class PatientViewModel (private val context: Context): ViewModel() {
      */
     fun loadSession(context: Context) {
         AuthManager.init(context)
+        loggedInPatientId.value = (AuthManager.getPatientSession() as? String).orEmpty()
     }
 
     /**

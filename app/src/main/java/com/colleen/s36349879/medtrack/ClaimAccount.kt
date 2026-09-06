@@ -28,12 +28,14 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.colleen.s36349879.medtrack.data.patient.PatientViewModel
+import com.colleen.s36349879.medtrack.ui.localization.LocalStrings
 import kotlin.text.iterator
 
 // This screen lets a csv patient claim their account
 // by verifying their Patient ID and phone number, then setting a new password
 @Composable
 fun ClaimAccountScreen(navController: NavHostController, patientViewModel: PatientViewModel){
+    val strings = LocalStrings.current
 
     // Input field values
     var patientId by remember {mutableStateOf("")}
@@ -50,7 +52,7 @@ fun ClaimAccountScreen(navController: NavHostController, patientViewModel: Patie
 
         // Screen title
         Text(
-            text = "Claim Account",
+            text = strings.claimAccountTitle,
             style = MaterialTheme.typography.headlineMedium,
             color = colorResource(R.color.LightBlue),
             fontWeight = FontWeight.Bold
@@ -63,13 +65,13 @@ fun ClaimAccountScreen(navController: NavHostController, patientViewModel: Patie
         OutlinedTextField(
             value = patientId,
             onValueChange = { patientId = it },
-            label = { Text("Patient ID (e.g. P1001)") },
+            label = { Text(strings.claimAccountPatientIdLabel) },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             isError = patientId.isBlank(),
             supportingText = {
                 if (patientId.isBlank()) {
-                    Text(text = "Patient ID is required", color = MaterialTheme.colorScheme.error)
+                    Text(text = strings.claimAccountPatientIdRequired, color = MaterialTheme.colorScheme.error)
                 }
             }
         )
@@ -80,14 +82,14 @@ fun ClaimAccountScreen(navController: NavHostController, patientViewModel: Patie
         OutlinedTextField(
             value = phone,
             onValueChange = { phone = it },
-            label = { Text("Phone Number") },
+            label = { Text(strings.claimAccountPhoneLabel) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             isError = phone.isBlank(),
             supportingText = {
                 if (phone.isBlank()) {
-                    Text(text = "Phone Number is required", color = MaterialTheme.colorScheme.error)
+                    Text(text = strings.claimAccountPhoneRequired, color = MaterialTheme.colorScheme.error)
                 }
             }
         )
@@ -106,15 +108,15 @@ fun ClaimAccountScreen(navController: NavHostController, patientViewModel: Patie
         // Build a list of error messages based on which rules are broken
         val passwordErrors = mutableListOf<String>()
         if (newPassword.isNotEmpty()) {
-            if (newPassword.length < 8) passwordErrors.add("Must be at least 8 characters")
-            if (!hasLetter) passwordErrors.add("Must contain at least one letter")
-            if (!hasNumber) passwordErrors.add("Must contain at least one number")
+            if (newPassword.length < 8) passwordErrors.add(strings.signUpPasswordMinLength)
+            if (!hasLetter) passwordErrors.add(strings.signUpPasswordNeedsLetter)
+            if (!hasNumber) passwordErrors.add(strings.signUpPasswordNeedsNumber)
         }
 
         // Password input field
         OutlinedTextField(value = newPassword,
             onValueChange = { newPassword = it },
-            label = { Text("Set New Password") },
+            label = { Text(strings.claimAccountNewPasswordLabel) },
             visualTransformation = PasswordVisualTransformation(),
             isError = passwordErrors.isNotEmpty(),
             modifier = Modifier.fillMaxWidth(),
@@ -154,14 +156,14 @@ fun ClaimAccountScreen(navController: NavHostController, patientViewModel: Patie
                                 popUpTo("claim_account") {inclusive = true}
                             }
                         } else{
-                            errorMessage = "No matching Patient ID and Phone Number found."
+                            errorMessage = strings.claimAccountNoMatch
                         }
                     }
                 }
             },
             modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
             colors = ButtonDefaults.buttonColors(containerColor = colorResource(R.color.LightBlue))
-        ) { Text("Set Password & Claim") }
+        ) { Text(strings.claimAccountSubmit) }
     }
 
 }

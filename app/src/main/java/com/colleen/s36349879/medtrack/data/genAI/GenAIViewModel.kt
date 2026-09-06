@@ -68,6 +68,7 @@ class GenAIViewModel(context: Context): ViewModel() {
     fun generateMedicationTip(
         medications: List<String>,
         symptoms: List<String>,
+        allergies: List<String> = emptyList(),
         onSuccess: (String) -> Unit
     ) {
         viewModelScope.launch {
@@ -80,8 +81,9 @@ class GenAIViewModel(context: Context): ViewModel() {
                 CONTEXT: 
                 Medications: ${medications.ifEmpty { listOf("None") }.joinToString(", ")}
                 Recent Symptoms: ${symptoms.ifEmpty { listOf("None reported") }.joinToString(", ")}
+                Recorded Medicine Allergies: ${allergies.ifEmpty { listOf("None recorded") }.joinToString(", ")}
 
-                TASK: Provide one safety tip (under 30 words) based on the specific combination of their medications and symptoms. 
+                TASK: Provide one safety tip (under 30 words) based on the specific combination of their medications, symptoms, and recorded medicine allergies. Do not recommend a medicine that conflicts with a recorded allergy. If an allergy or medication concern cannot be established from verified information, say so rather than guessing. 
                 If they have no medications or symptoms, provide a general wellness tip. 
                 Be professional and encouraging.
                 """.trimIndent() // format multiline strings by removing common leading whitespace from every line.

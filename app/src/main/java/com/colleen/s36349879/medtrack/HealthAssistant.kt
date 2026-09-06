@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.colleen.s36349879.medtrack.data.healthassistant.HealthAssistantUiState
 import com.colleen.s36349879.medtrack.data.healthassistant.HealthAssistantViewModel
+import com.colleen.s36349879.medtrack.ui.localization.LocalStrings
 
 /**
  * Health Assistant tab: general informational guidance from symptoms + vitals.
@@ -31,36 +32,14 @@ fun HealthAssistantScreen(
     navController: NavHostController,
     viewModel: HealthAssistantViewModel
 ) {
+    val strings = LocalStrings.current
     var symptoms by remember { mutableStateOf("") }
     var bloodPressure by remember { mutableStateOf("") }
     var temperature by remember { mutableStateOf("") }
     val uiState = viewModel.uiState
 
     Scaffold(
-        bottomBar = {
-            BottomAppBar(
-                modifier = Modifier.height(60.dp),
-                content = {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        IconButton(onClick = { navController.navigate("home") }) {
-                            Icon(Icons.Filled.Home, contentDescription = "Go Home")
-                        }
-                        IconButton(onClick = { navController.navigate("symptoms") }) {
-                            Icon(Icons.AutoMirrored.Filled.List, contentDescription = "Symptoms")
-                        }
-                        IconButton(onClick = { navController.navigate("settings") }) {
-                            Icon(Icons.Filled.Settings, contentDescription = "Settings")
-                        }
-                        IconButton(onClick = { navController.navigate("med_coach") }) {
-                            Icon(Icons.Filled.SupportAgent, contentDescription = "MedCoach")
-                        }
-                    }
-                }
-            )
-        }
+        bottomBar = { MedTrackBottomBar(navController, currentRoute = "health_assistant") }
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -69,13 +48,13 @@ fun HealthAssistantScreen(
                 .padding(20.dp)
         ) {
             Text(
-                text = "Health Assistant",
+                text = strings.healthAssistantTitle,
                 fontSize = 26.sp,
                 fontWeight = FontWeight.Bold,
                 color = colorResource(R.color.LightBlue)
             )
             Text(
-                text = "General informational guidance only — not a diagnosis.",
+                text = strings.healthAssistantSubtitle,
                 modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
                 color = Color.Gray
             )
@@ -83,7 +62,7 @@ fun HealthAssistantScreen(
             OutlinedTextField(
                 value = symptoms,
                 onValueChange = { symptoms = it },
-                label = { Text("Symptoms") },
+                label = { Text(strings.healthAssistantSymptomsLabel) },
                 placeholder = { Text("e.g. headache and mild fever since this morning") },
                 minLines = 3,
                 modifier = Modifier.fillMaxWidth()
@@ -93,7 +72,7 @@ fun HealthAssistantScreen(
                 OutlinedTextField(
                     value = bloodPressure,
                     onValueChange = { bloodPressure = it },
-                    label = { Text("Blood pressure") },
+                    label = { Text(strings.healthAssistantBloodPressureLabel) },
                     placeholder = { Text("120/80") },
                     modifier = Modifier.weight(1f)
                 )
@@ -101,7 +80,7 @@ fun HealthAssistantScreen(
                 OutlinedTextField(
                     value = temperature,
                     onValueChange = { temperature = it },
-                    label = { Text("Temperature") },
+                    label = { Text(strings.healthAssistantTemperatureLabel) },
                     placeholder = { Text("37.5°C") },
                     modifier = Modifier.weight(1f)
                 )
@@ -123,7 +102,7 @@ fun HealthAssistantScreen(
                 if (uiState is HealthAssistantUiState.Loading) {
                     CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
                 } else {
-                    Text("Get guidance")
+                    Text(strings.healthAssistantSubmit)
                 }
             }
 
@@ -140,6 +119,7 @@ fun HealthAssistantScreen(
 
 @Composable
 private fun GuidanceCard(guidance: String, onFlag: () -> Unit) {
+    val strings = LocalStrings.current
     var flagged by remember(guidance) { mutableStateOf(false) }
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -151,7 +131,7 @@ private fun GuidanceCard(guidance: String, onFlag: () -> Unit) {
             OutlinedButton(onClick = { onFlag(); flagged = true }, enabled = !flagged) {
                 Icon(Icons.Filled.Flag, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text(if (flagged) "Sent to doctor review" else "Flag this response")
+                Text(if (flagged) strings.healthAssistantFlagged else strings.healthAssistantFlagResponse)
             }
         }
     }

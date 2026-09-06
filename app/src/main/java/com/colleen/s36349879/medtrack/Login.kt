@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.colleen.s36349879.medtrack.data.patient.PatientViewModel
+import com.colleen.s36349879.medtrack.ui.localization.LocalStrings
 import com.colleen.s36349879.medtrack.ui.theme.MedtrackTheme
 import kotlinx.coroutines.launch
 import java.io.BufferedReader
@@ -33,6 +34,7 @@ import java.io.InputStreamReader
 //Login Screen
 @Composable
 fun LoginScreen(navController: NavHostController, patientViewModel: PatientViewModel) {
+    val strings = LocalStrings.current
 
     // Input variables
     var patientId by remember { mutableStateOf("") }
@@ -54,7 +56,7 @@ fun LoginScreen(navController: NavHostController, patientViewModel: PatientViewM
 
         // Title
         Text(
-            text = "Login",
+            text = strings.loginTitle,
             style = TextStyle(
                 fontSize = 50.sp,
                 color = colorResource(R.color.LightBlue),
@@ -72,7 +74,7 @@ fun LoginScreen(navController: NavHostController, patientViewModel: PatientViewM
                 patientIdError = false
             },
 
-            label = {Text("Patient ID")},
+            label = {Text(strings.loginPatientId)},
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
             isError = patientIdError,
             singleLine = true
@@ -90,7 +92,7 @@ fun LoginScreen(navController: NavHostController, patientViewModel: PatientViewM
         // Validate if empty
         if (patientId.isBlank()) {
             patientIdError = true
-            patientIdErrorMessage = "Patient Id is required"
+            patientIdErrorMessage = strings.loginPatientIdRequired
         }
 
         Spacer (modifier = Modifier.height(16.dp))
@@ -103,7 +105,7 @@ fun LoginScreen(navController: NavHostController, patientViewModel: PatientViewM
                 passwordError = false
             },
 
-            label = {Text("Password")},
+            label = {Text(strings.loginPassword)},
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             isError = passwordError,
@@ -122,7 +124,7 @@ fun LoginScreen(navController: NavHostController, patientViewModel: PatientViewM
         // Validate if empty
         if (password.isBlank()) {
             passwordError = true
-            passwordErrorMessage = "Password is required"
+            passwordErrorMessage = strings.loginPasswordRequired
         }
 
         Spacer (modifier = Modifier.height(24.dp))
@@ -136,13 +138,13 @@ fun LoginScreen(navController: NavHostController, patientViewModel: PatientViewM
                     patientViewModel.login(patientId.trim(), password.trim()){ success ->
                         if (success){
                             // Credentials matched so navigate to the home screen
-                            navController.navigate("home"){
+                            navController.navigate("fact_check"){
                                 popUpTo("welcome") {inclusive = true}
                             }
                         } else {
                             patientIdError = true
                             passwordError = true
-                            passwordErrorMessage = "Invalid Patient ID or Password"
+                            passwordErrorMessage = strings.loginInvalidCredentials
                         }
                     }
                 }
@@ -157,7 +159,7 @@ fun LoginScreen(navController: NavHostController, patientViewModel: PatientViewM
                 .fillMaxWidth()
                 .padding(18.dp)
         ){
-            Text(text = "Login",
+            Text(text = strings.loginTitle,
                 fontSize = 20.sp)
         }
 
