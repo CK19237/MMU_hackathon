@@ -14,6 +14,7 @@ import com.colleen.s36349879.medtrack.data.doctorreview.FlaggedItem
 import com.colleen.s36349879.medtrack.data.doctorreview.FlaggedItemDao
 import com.colleen.s36349879.medtrack.data.doctorreview.FlaggedSourceTab
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /** UI state for the Fact-Check tab. Mirrors the sealed-state pattern already used by [com.colleen.s36349879.medtrack.data.GenAiUiState]. */
